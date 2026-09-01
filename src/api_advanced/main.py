@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+
 app = Flask(__name__)
 
 LIST = [
@@ -33,93 +34,101 @@ LIST = [
 ]
 
 @app.get("/")
-class StudentClass:
-    def __init__(self, usn, name,  age, course, marks):
-        self.usn = usn
-        self.name = name
-        self.age = age
-        self.course = course
-        self.marks = marks
-    def  calculate_grade(self, marks):
-        if self.marks >= 80:
-            return f"Your grade is A"
-        elif self.marks >=60 and self.marks < 80 :
-            return f"Your grade is B"
-        elif self.marks >=40 and self.marks < 60:
-            return f"Your grade is C"
-        elif self.marks < 40:
-            return f"Your grade is F"
-    def get_details(self):
-        return f"Student name is {self.name}, her USN is{self.student_id}, her age is {self.age}, she is studying course is {self.course}, she scored{self.marks}"
+def home():
+    return jsonify({
+        "message": "Student API is running!",
+        "routes": {
+            "GET /": "Show all available routes",
+            "POST /students": "Add a new student",
+            "GET /students": "Get all students",
+            "GET /students/<id>": "Get a student by USN",
+            "PATCH /students/<id>": "Update a student by USN",
+            "DELETE /students/<id>": "Delete a student by USN",
+            "GET /students/passed": "Get names of students who passed",
+            "GET /students/stats": "Get student statistics",
+            "GET /test": "Test whether the API is working"
+        }
+    })
+
+
 @app.post("/students")
 def add_student():
     data = request.get_json()
-    LIST.append(data)  
-    return LIST[-1], 201  
-@app.get("/students")    
+    LIST.append(data)
+    return jsonify(LIST[-1]), 201
+
+
+@app.get("/students")
 def get_students():
-    return LIST, 200 
+    return jsonify(LIST), 200
+
+
 @app.get("/students/<id>")
 def get_student_by_id(id):
-    student_name = ""
-    for i in LIST:
-        if i["usn"] == id:
-            student_name = i["name"]
-    return student_name
+    for student in LIST:
+        if student["usn"] == id:
+            return jsonify(student)
+
+    return jsonify({"error": "Student not found"}), 404
+
+
 @app.patch("/students/<id>")
 def update_student(id):
-    name = request.args.get("name")
-    age = request.args.get("age")
-    course = request.args.get("course")
-    marks = request.args.get("marks")
-    for i in LIST:
-        student = i
-        if i["usn"] == id:
-            i["name"] = name
-            i["age"] = age
-            i["course"] = course
-            i["marks"] = marks
-    return student
-            
+    data = request.get_json()
+
+    for student in LIST:
+        if student["usn"] == id:
+            student.update(data)
+            return jsonify(student)
+
+    return jsonify({"error": "Student not found"}), 404
+
+
 @app.delete("/students/<id>")
 def delete_student(id):
-    for i in LIST:
-        if i["usn"] == id:
-            del i
-    return LIST
+    for student in LIST:
+        if student["usn"] == id:
+            LIST.remove(student)
+            return jsonify(LIST)
+
+    return jsonify({"error": "Student not found"}), 404
+
+
 @app.get("/students/passed")
 def get_passed():
     passed_students = []
-    for i in LIST:
-        if i["marks"] > 40:
-            passed_students.append(i["name"])
+
+    for student in LIST:
+        if student["marks"] >= 40:
+            passed_students.append(student["name"])
+
     return jsonify(passed_students)
-@app.route("/students/stats")
+
+
+@app.get("/students/stats")
 def calc_stats():
-    total_students = 0
-    average_marks = 0
-    highest_marks = 0
-    lowest_marks = 1000
-    grand_total_marks = 0
-    for i in LIST:
-        total_students +=1
-        grand_total_marks += i["marks"]
-        if i["marks"] > highest_marks:
-            highest_marks = i["marks"]
-        else:
-            lowest_marks = i["marks"]
-    average_marks = grand_total_marks/total_students
+    if not LIST:
+        return jsonify({
+            "total students": 0,
+            "average marks": 0,
+            "highest marks": 0,
+            "lowest marks": 0
+        })
+
+    marks = [student["marks"] for student in LIST]
+
     return jsonify({
-        "total students": total_students,
-        "average marks": average_marks,
-        "highest marks": highest_marks,
-        "lowest marks": lowest_marks,
+        "total students": len(LIST),
+        "average marks": sum(marks) / len(marks),
+        "highest marks": max(marks),
+        "lowest marks": min(marks)
     })
+
+
 @app.get("/test")
 def test():
     return "API is working fine"
 
+
 if __name__ == "__main__":
-    app.run(debug = True)
-    
-    
+    app.run(debug=True)
